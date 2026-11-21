@@ -64,8 +64,7 @@ All notable changes to this project will be documented in this file.
   inclusive span of dates, built from its end date, start date, or both.
   Re-exported from the `paft` facade and prelude.
 
-- Domain/error: added `DomainError::InvalidPeriodRange`, returned by the
-  `FiscalPeriod` range constructors when the start is after the end.
+- Domain/error: added `DomainError::InvalidPeriodRange`.
 
 - Money: added a lossy `to_f64() -> Option<f64>` to `Money`, `Price`, and
   `PriceAmount`.

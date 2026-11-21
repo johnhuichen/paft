@@ -848,9 +848,6 @@ impl CalendarPeriod {
 }
 
 /// Fiscal year or quarter as an inclusive date span, such as 2025-02-01 to 2026-01-31.
-///
-/// Spans need not align with calendar periods or have a standard length.
-/// Build values with the `from_*` constructors.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum FiscalPeriod {

@@ -135,8 +135,7 @@ pub struct IncomeStatementRow {
     pub income_tax_expense: Option<Money>,
     /// Depreciation and amortization recognized on the income statement.
     pub depreciation_and_amortization: Option<Money>,
-    /// Net income from continuing operations, before the results of discontinued
-    /// operations.
+    /// Net income from continuing operations.
     pub net_income_from_continuing_operations: Option<Money>,
     /// Net income.
     pub net_income: Option<Money>,

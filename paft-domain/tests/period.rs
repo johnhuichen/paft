@@ -663,7 +663,6 @@ fn fiscal_quarter_from_end_starts_the_day_after_the_prior_quarter_end() {
     assert!(quarter.is_quarter());
     assert!(!quarter.is_year());
 
-    // A month-end on the 30th must not pull in the 31st of the prior quarter end.
     let april = FiscalPeriod::from_quarter_end(ymd(2025, 4, 30)).unwrap();
     assert_span(&april, ymd(2025, 2, 1), ymd(2025, 4, 30));
 
@@ -693,7 +692,6 @@ fn fiscal_period_handles_february_month_ends() {
     let leap_end = FiscalPeriod::from_year_end(ymd(2024, 2, 29)).unwrap();
     assert_span(&leap_end, ymd(2023, 3, 1), ymd(2024, 2, 29));
 
-    // Year ending Feb 28 after a leap year must not include Feb 29.
     let after_leap = FiscalPeriod::from_year_end(ymd(2025, 2, 28)).unwrap();
     assert_span(&after_leap, ymd(2024, 3, 1), ymd(2025, 2, 28));
 
@@ -707,7 +705,6 @@ fn fiscal_period_handles_february_month_ends() {
     let common_quarter = FiscalPeriod::from_quarter_start(ymd(2025, 12, 1)).unwrap();
     assert_span(&common_quarter, ymd(2025, 12, 1), ymd(2026, 2, 28));
 
-    // A quarter ending May 31 starts on March 1, not after a clamped Feb 28.
     let may = FiscalPeriod::from_quarter_end(ymd(2025, 5, 31)).unwrap();
     assert_span(&may, ymd(2025, 3, 1), ymd(2025, 5, 31));
 }
@@ -764,7 +761,6 @@ fn fiscal_period_end_and_start_constructors_round_trip() {
 
 #[test]
 fn fiscal_period_from_end_clamps_when_the_next_day_is_past_the_28th() {
-    // Day after end is May 30 / May 31; three months back clamps to Feb 28.
     let may_29 = FiscalPeriod::from_quarter_end(ymd(2025, 5, 29)).unwrap();
     assert_span(&may_29, ymd(2025, 2, 28), ymd(2025, 5, 29));
     let may_30 = FiscalPeriod::from_quarter_end(ymd(2025, 5, 30)).unwrap();
@@ -773,7 +769,6 @@ fn fiscal_period_from_end_clamps_when_the_next_day_is_past_the_28th() {
     let back = FiscalPeriod::from_quarter_start(may_30.start_date()).unwrap();
     assert_span(&back, ymd(2025, 2, 28), ymd(2025, 5, 27));
 
-    // Day after end is Feb 29; a year back clamps to Feb 28 of a common year.
     let year = FiscalPeriod::from_year_end(ymd(2028, 2, 28)).unwrap();
     assert_span(&year, ymd(2027, 2, 28), ymd(2028, 2, 28));
     let back = FiscalPeriod::from_year_start(year.start_date()).unwrap();
@@ -782,7 +777,6 @@ fn fiscal_period_from_end_clamps_when_the_next_day_is_past_the_28th() {
 
 #[test]
 fn fiscal_period_from_range_keeps_both_dates() {
-    // A transition year after a fiscal year-end change can be any length.
     let short_year = FiscalPeriod::from_year_range(ymd(2025, 2, 1), ymd(2025, 9, 30)).unwrap();
     assert_span(&short_year, ymd(2025, 2, 1), ymd(2025, 9, 30));
     assert!(short_year.is_year());
@@ -838,7 +832,6 @@ fn fiscal_period_rejects_dates_outside_period_years() {
         DomainError::InvalidPeriodYear { year: -1 }
     );
 
-    // The extreme spans that stay inside 0..=9999 are accepted.
     let first = FiscalPeriod::from_year_start(ymd(0, 1, 1)).unwrap();
     assert_span(&first, ymd(0, 1, 1), ymd(0, 12, 31));
     let last = FiscalPeriod::from_year_end(ymd(9999, 12, 31)).unwrap();
