@@ -61,7 +61,8 @@ pub use identifiers::{Figi, Isin, Symbol};
 pub use instrument::{AssetKind, Instrument, OtherAssetKind};
 pub use market_state::{MarketState, OtherMarketState};
 pub use period::{
-    CalendarPeriod, OtherPeriod, PeriodDate, PeriodYear, QuarterOfYear, ReportingPeriod,
+    CalendarPeriod, FiscalPeriod, OtherPeriod, PeriodDate, PeriodYear, QuarterOfYear,
+    ReportingPeriod,
 };
 
 #[cfg(feature = "dataframe")]

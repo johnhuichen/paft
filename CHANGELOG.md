@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
   `IncomeStatementRow`: `cost_of_revenue`, `research_and_development`,
   `selling_general_and_administrative`, `operating_expenses`,
   `interest_income`, `ebit`, `ebitda`, `pretax_income`,
+  `net_income_from_continuing_operations` (signed like `net_income`),
   `net_income_common_stockholders`, `basic_eps`, `diluted_eps`,
   `basic_average_shares`, and `diluted_average_shares`. New on
   `BalanceSheetRow`: `total_debt`, `current_debt`,
@@ -55,6 +56,28 @@ All notable changes to this project will be documented in this file.
 
 - Fundamentals: exact `DataFrame` schema tests (full ordered column list and
   dtype) and JSON wire-format tests for all three statement rows.
+
+- Domain/period: added `ReportingPeriod::label_year()`, which returns the year
+  written in the period's label, including the calendar year of a `Date`
+  period (`None` for `Other`). Unlike `year()`, it covers `Date` periods; it
+  is not a fiscal-year name. `year()` is unchanged.
+
+- Domain/period: added `FiscalPeriod`, a fiscal year or quarter as an
+  inclusive span of dates (`Year { start, end }` and `Quarter { start, end }`),
+  re-exported from the `paft` facade and prelude. Build it from an end date
+  (`from_year_end`, `from_quarter_end`), a start date (`from_year_start`,
+  `from_quarter_start`), or both (`from_year_range`, `from_quarter_range`, for
+  periods of any length); read it with `start_date()`, `end_date()`,
+  `is_year()`, `is_quarter()`, and `contains_date()`. Constructors return
+  `Result`. The variants are `#[non_exhaustive]`, so values can only be built
+  through the checked constructors.
+
+- Domain/error: added `DomainError::InvalidPeriodRange`, returned by the
+  `FiscalPeriod` range constructors when the start is after the end.
+
+- Money: added `to_f64() -> Option<f64>` to `Money`, `Price`, and
+  `PriceAmount`. The conversion is lossy and meant for charting or statistics;
+  it returns `None` when the active decimal backend cannot convert the amount.
 
 ### Changed
 

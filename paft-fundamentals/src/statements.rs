@@ -28,8 +28,8 @@ use paft_money::{Money, Price, QuantityAmount};
 /// add-back within operating cash flow.
 ///
 /// Result lines ([`Self::operating_income`], [`Self::pretax_income`],
-/// [`Self::net_income`], and the rest) are signed, and are negative for a
-/// loss-making period.
+/// [`Self::net_income_from_continuing_operations`], [`Self::net_income`], and
+/// the rest) are signed, and are negative for a loss-making period.
 ///
 /// # Reported vs. derived fields
 ///
@@ -135,6 +135,12 @@ pub struct IncomeStatementRow {
     pub income_tax_expense: Option<Money>,
     /// Depreciation and amortization recognized on the income statement.
     pub depreciation_and_amortization: Option<Money>,
+    /// Net income from continuing operations: net income before the results
+    /// of discontinued operations.
+    ///
+    /// Signed like [`Self::net_income`], and negative for a loss; see the
+    /// struct-level note on signs.
+    pub net_income_from_continuing_operations: Option<Money>,
     /// Net income.
     pub net_income: Option<Money>,
     /// Net income attributable to common stockholders.

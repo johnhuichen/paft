@@ -50,6 +50,7 @@ fn income_row() -> IncomeStatementRow {
         pretax_income: Some(usd("3420")),
         income_tax_expense: Some(usd("700")),
         depreciation_and_amortization: Some(usd("600")),
+        net_income_from_continuing_operations: Some(usd("2720")),
         net_income: Some(usd("2720")),
         net_income_common_stockholders: Some(usd("2700")),
         basic_eps: Some(usd_price("2.72")),
@@ -132,6 +133,7 @@ fn statement_rows_serialize_every_field_under_its_declared_name() {
         "pretax_income",
         "income_tax_expense",
         "depreciation_and_amortization",
+        "net_income_from_continuing_operations",
         "net_income",
         "net_income_common_stockholders",
         "basic_eps",
@@ -266,6 +268,23 @@ fn cashflow_negative_signs_survive_serialization() {
     assert_eq!(cashflow["end_cash_position"]["amount"], json!("1000"));
 }
 
+/// Income statement result lines are signed: a loss from continuing
+/// operations keeps its negative sign through a serde round trip.
+#[test]
+fn continuing_operations_loss_keeps_its_negative_sign() {
+    let mut income = income_row();
+    income.net_income_from_continuing_operations = Some(usd("-150"));
+    let json: Value = from_str(&to_string(&income).unwrap()).unwrap();
+    assert_eq!(
+        json["net_income_from_continuing_operations"],
+        json!({"amount": "-150", "currency": "USD", "minor_units": 2})
+    );
+    assert_eq!(
+        from_str::<IncomeStatementRow>(&json.to_string()).unwrap(),
+        income
+    );
+}
+
 #[test]
 fn statement_rows_round_trip_through_json() {
     let income = income_row();
@@ -296,6 +315,7 @@ fn omitted_optional_fields_deserialize_to_none() {
     assert_eq!(income.period, ReportingPeriod::annual(2024).unwrap());
     assert!(income.total_revenue.is_none());
     assert!(income.ebitda.is_none());
+    assert!(income.net_income_from_continuing_operations.is_none());
     assert!(income.basic_average_shares.is_none());
 
     let balance: BalanceSheetRow = from_str(r#"{"period":"2024"}"#).unwrap();

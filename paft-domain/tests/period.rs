@@ -1,6 +1,6 @@
 use chrono::NaiveDate;
 use paft_domain::{
-    CalendarPeriod, DomainError, MarketState, PeriodDate, PeriodYear, QuarterOfYear,
+    CalendarPeriod, DomainError, FiscalPeriod, MarketState, PeriodDate, PeriodYear, QuarterOfYear,
     ReportingPeriod,
 };
 use std::str::FromStr;
@@ -613,4 +613,257 @@ fn period_cases() -> Vec<PeriodCase> {
             canonical: "2023-12-31",
         },
     ]
+}
+
+#[test]
+fn period_label_year_reads_the_year_written_in_the_label() {
+    assert_eq!(
+        ReportingPeriod::annual(2026).unwrap().label_year(),
+        Some(2026)
+    );
+    assert_eq!(
+        ReportingPeriod::quarterly(2026, 3).unwrap().label_year(),
+        Some(2026)
+    );
+    assert_eq!(date_period(2026, 9, 30).label_year(), Some(2026));
+    assert_eq!(date_period(2026, 1, 1).label_year(), Some(2026));
+    assert_eq!(date_period(2025, 12, 31).label_year(), Some(2025));
+    assert_eq!(ReportingPeriod::other("TTM").unwrap().label_year(), None);
+
+    // `year()` is unchanged: it still ignores date periods.
+    assert_eq!(date_period(2026, 9, 30).year(), None);
+}
+
+const fn ymd(year: i32, month: u32, day: u32) -> NaiveDate {
+    NaiveDate::from_ymd_opt(year, month, day).unwrap()
+}
+
+fn assert_span(period: &FiscalPeriod, start: NaiveDate, end: NaiveDate) {
+    assert_eq!(period.start_date(), start, "start of {period:?}");
+    assert_eq!(period.end_date(), end, "end of {period:?}");
+}
+
+#[test]
+fn fiscal_year_from_end_starts_the_day_after_the_prior_year_end() {
+    let year = FiscalPeriod::from_year_end(ymd(2026, 1, 31)).unwrap();
+    assert_span(&year, ymd(2025, 2, 1), ymd(2026, 1, 31));
+    assert!(year.is_year());
+    assert!(!year.is_quarter());
+
+    let mid_month = FiscalPeriod::from_year_end(ymd(2025, 6, 15)).unwrap();
+    assert_span(&mid_month, ymd(2024, 6, 16), ymd(2025, 6, 15));
+
+    let calendar = FiscalPeriod::from_year_end(ymd(2025, 12, 31)).unwrap();
+    assert_span(&calendar, ymd(2025, 1, 1), ymd(2025, 12, 31));
+}
+
+#[test]
+fn fiscal_quarter_from_end_starts_the_day_after_the_prior_quarter_end() {
+    let quarter = FiscalPeriod::from_quarter_end(ymd(2025, 10, 31)).unwrap();
+    assert_span(&quarter, ymd(2025, 8, 1), ymd(2025, 10, 31));
+    assert!(quarter.is_quarter());
+    assert!(!quarter.is_year());
+
+    // A month-end on the 30th must not pull in the 31st of the prior quarter end.
+    let april = FiscalPeriod::from_quarter_end(ymd(2025, 4, 30)).unwrap();
+    assert_span(&april, ymd(2025, 2, 1), ymd(2025, 4, 30));
+
+    let calendar_q1 = FiscalPeriod::from_quarter_end(ymd(2025, 3, 31)).unwrap();
+    assert_span(&calendar_q1, ymd(2025, 1, 1), ymd(2025, 3, 31));
+}
+
+#[test]
+fn fiscal_period_from_start_ends_the_day_before_the_next_period() {
+    let year = FiscalPeriod::from_year_start(ymd(2025, 2, 1)).unwrap();
+    assert_span(&year, ymd(2025, 2, 1), ymd(2026, 1, 31));
+    assert!(year.is_year());
+
+    let calendar = FiscalPeriod::from_year_start(ymd(2025, 1, 1)).unwrap();
+    assert_span(&calendar, ymd(2025, 1, 1), ymd(2025, 12, 31));
+
+    let quarter = FiscalPeriod::from_quarter_start(ymd(2025, 8, 1)).unwrap();
+    assert_span(&quarter, ymd(2025, 8, 1), ymd(2025, 10, 31));
+    assert!(quarter.is_quarter());
+
+    let mid_month = FiscalPeriod::from_quarter_start(ymd(2025, 6, 16)).unwrap();
+    assert_span(&mid_month, ymd(2025, 6, 16), ymd(2025, 9, 15));
+}
+
+#[test]
+fn fiscal_period_handles_february_month_ends() {
+    // Leap-year February end: the year starts on March 1 of the prior year.
+    let leap_end = FiscalPeriod::from_year_end(ymd(2024, 2, 29)).unwrap();
+    assert_span(&leap_end, ymd(2023, 3, 1), ymd(2024, 2, 29));
+
+    // Year ending Feb 28 after a leap year must not include Feb 29.
+    let after_leap = FiscalPeriod::from_year_end(ymd(2025, 2, 28)).unwrap();
+    assert_span(&after_leap, ymd(2024, 3, 1), ymd(2025, 2, 28));
+
+    // Year starting March 1 ends on the last day of February, leap or not.
+    let to_leap = FiscalPeriod::from_year_start(ymd(2023, 3, 1)).unwrap();
+    assert_span(&to_leap, ymd(2023, 3, 1), ymd(2024, 2, 29));
+    let to_common = FiscalPeriod::from_year_start(ymd(2024, 3, 1)).unwrap();
+    assert_span(&to_common, ymd(2024, 3, 1), ymd(2025, 2, 28));
+
+    let leap_quarter = FiscalPeriod::from_quarter_end(ymd(2024, 2, 29)).unwrap();
+    assert_span(&leap_quarter, ymd(2023, 12, 1), ymd(2024, 2, 29));
+    let common_quarter = FiscalPeriod::from_quarter_start(ymd(2025, 12, 1)).unwrap();
+    assert_span(&common_quarter, ymd(2025, 12, 1), ymd(2026, 2, 28));
+
+    // A quarter ending May 31 starts on March 1, not after a clamped Feb 28.
+    let may = FiscalPeriod::from_quarter_end(ymd(2025, 5, 31)).unwrap();
+    assert_span(&may, ymd(2025, 3, 1), ymd(2025, 5, 31));
+}
+
+#[test]
+fn fiscal_period_end_and_start_constructors_round_trip() {
+    let ends = [
+        ymd(2026, 1, 31),
+        ymd(2024, 2, 29),
+        ymd(2025, 2, 28),
+        ymd(2025, 4, 30),
+        ymd(2025, 6, 15),
+        ymd(2025, 9, 30),
+        ymd(2025, 12, 31),
+    ];
+    for end in ends {
+        let year = FiscalPeriod::from_year_end(end).unwrap();
+        assert_eq!(
+            FiscalPeriod::from_year_start(year.start_date()).unwrap(),
+            year,
+            "year ending {end}"
+        );
+        let quarter = FiscalPeriod::from_quarter_end(end).unwrap();
+        assert_eq!(
+            FiscalPeriod::from_quarter_start(quarter.start_date()).unwrap(),
+            quarter,
+            "quarter ending {end}"
+        );
+    }
+
+    let starts = [
+        ymd(2025, 2, 1),
+        ymd(2023, 3, 1),
+        ymd(2024, 3, 1),
+        ymd(2025, 1, 1),
+        ymd(2025, 6, 16),
+        ymd(2025, 12, 1),
+    ];
+    for start in starts {
+        let year = FiscalPeriod::from_year_start(start).unwrap();
+        assert_eq!(
+            FiscalPeriod::from_year_end(year.end_date()).unwrap(),
+            year,
+            "year starting {start}"
+        );
+        let quarter = FiscalPeriod::from_quarter_start(start).unwrap();
+        assert_eq!(
+            FiscalPeriod::from_quarter_end(quarter.end_date()).unwrap(),
+            quarter,
+            "quarter starting {start}"
+        );
+    }
+}
+
+#[test]
+fn fiscal_period_from_end_clamps_when_the_next_day_is_past_the_28th() {
+    // Day after end is May 30 / May 31; three months back clamps to Feb 28.
+    let may_29 = FiscalPeriod::from_quarter_end(ymd(2025, 5, 29)).unwrap();
+    assert_span(&may_29, ymd(2025, 2, 28), ymd(2025, 5, 29));
+    let may_30 = FiscalPeriod::from_quarter_end(ymd(2025, 5, 30)).unwrap();
+    assert_span(&may_30, ymd(2025, 2, 28), ymd(2025, 5, 30));
+    // The clamped start does not give back the original end.
+    let back = FiscalPeriod::from_quarter_start(may_30.start_date()).unwrap();
+    assert_span(&back, ymd(2025, 2, 28), ymd(2025, 5, 27));
+
+    // Day after end is Feb 29; a year back clamps to Feb 28 of a common year.
+    let year = FiscalPeriod::from_year_end(ymd(2028, 2, 28)).unwrap();
+    assert_span(&year, ymd(2027, 2, 28), ymd(2028, 2, 28));
+    let back = FiscalPeriod::from_year_start(year.start_date()).unwrap();
+    assert_span(&back, ymd(2027, 2, 28), ymd(2028, 2, 27));
+}
+
+#[test]
+fn fiscal_period_from_range_keeps_both_dates() {
+    // A transition year after a fiscal year-end change can be any length.
+    let short_year = FiscalPeriod::from_year_range(ymd(2025, 2, 1), ymd(2025, 9, 30)).unwrap();
+    assert_span(&short_year, ymd(2025, 2, 1), ymd(2025, 9, 30));
+    assert!(short_year.is_year());
+
+    let long_quarter =
+        FiscalPeriod::from_quarter_range(ymd(2025, 7, 1), ymd(2025, 11, 30)).unwrap();
+    assert_span(&long_quarter, ymd(2025, 7, 1), ymd(2025, 11, 30));
+    assert!(long_quarter.is_quarter());
+
+    let one_day = FiscalPeriod::from_quarter_range(ymd(2025, 7, 1), ymd(2025, 7, 1)).unwrap();
+    assert_span(&one_day, ymd(2025, 7, 1), ymd(2025, 7, 1));
+
+    // Same dates, different variant: not equal.
+    let as_year = FiscalPeriod::from_year_range(ymd(2025, 1, 1), ymd(2025, 3, 31)).unwrap();
+    let as_quarter = FiscalPeriod::from_quarter_range(ymd(2025, 1, 1), ymd(2025, 3, 31)).unwrap();
+    assert_ne!(as_year, as_quarter);
+}
+
+#[test]
+fn fiscal_period_range_rejects_start_after_end() {
+    let start = ymd(2025, 10, 1);
+    let end = ymd(2025, 9, 30);
+    let expected = DomainError::InvalidPeriodRange { start, end };
+    assert_eq!(
+        FiscalPeriod::from_year_range(start, end).unwrap_err(),
+        expected
+    );
+    assert_eq!(
+        FiscalPeriod::from_quarter_range(start, end).unwrap_err(),
+        expected
+    );
+}
+
+#[test]
+fn fiscal_period_rejects_dates_outside_period_years() {
+    assert_eq!(
+        FiscalPeriod::from_year_end(ymd(0, 6, 30)).unwrap_err(),
+        DomainError::InvalidPeriodYear { year: -1 }
+    );
+    assert_eq!(
+        FiscalPeriod::from_quarter_start(ymd(9999, 11, 1)).unwrap_err(),
+        DomainError::InvalidPeriodYear { year: 10000 }
+    );
+    assert_eq!(
+        FiscalPeriod::from_year_range(ymd(9999, 1, 1), ymd(10000, 1, 1)).unwrap_err(),
+        DomainError::InvalidPeriodYear { year: 10000 }
+    );
+    assert_eq!(
+        FiscalPeriod::from_quarter_range(ymd(-1, 12, 1), ymd(0, 1, 1)).unwrap_err(),
+        DomainError::InvalidPeriodYear { year: -1 }
+    );
+
+    // The extreme spans that stay inside 0..=9999 are accepted.
+    let first = FiscalPeriod::from_year_start(ymd(0, 1, 1)).unwrap();
+    assert_span(&first, ymd(0, 1, 1), ymd(0, 12, 31));
+    let last = FiscalPeriod::from_year_end(ymd(9999, 12, 31)).unwrap();
+    assert_span(&last, ymd(9999, 1, 1), ymd(9999, 12, 31));
+}
+
+#[test]
+fn fiscal_period_contains_both_ends_of_its_span() {
+    let periods = [
+        FiscalPeriod::from_year_end(ymd(2026, 1, 31)).unwrap(),
+        FiscalPeriod::from_quarter_end(ymd(2026, 1, 31)).unwrap(),
+    ];
+    for period in periods {
+        let start = period.start_date();
+        let end = period.end_date();
+        assert!(period.contains_date(start), "{period:?} start");
+        assert!(period.contains_date(end), "{period:?} end");
+        assert!(period.contains_date(ymd(2026, 1, 15)), "{period:?} middle");
+        assert!(
+            !period.contains_date(start.pred_opt().unwrap()),
+            "{period:?} day before"
+        );
+        assert!(
+            !period.contains_date(end.succ_opt().unwrap()),
+            "{period:?} day after"
+        );
+    }
 }

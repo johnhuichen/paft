@@ -236,6 +236,30 @@ fn price_amount_is_contextual_decimal() {
 }
 
 #[test]
+fn price_and_price_amount_to_f64_return_the_amount_as_a_float() {
+    assert_eq!(
+        Price::from_canonical_str("1.375", usd()).unwrap().to_f64(),
+        Some(1.375)
+    );
+    assert_eq!(
+        Price::from_canonical_str("-42", usd()).unwrap().to_f64(),
+        Some(-42.0)
+    );
+    let approx = Price::from_canonical_str("1.3578", usd())
+        .unwrap()
+        .to_f64()
+        .unwrap();
+    assert!((approx - 1.3578).abs() < 1e-12);
+
+    assert_eq!(
+        PriceAmount::new(parse_decimal("0.0625")).to_f64(),
+        Some(0.0625)
+    );
+    assert_eq!(PriceAmount::new(parse_decimal("-7.5")).to_f64(), Some(-7.5));
+    assert_eq!(PriceAmount::new(decimal::zero()).to_f64(), Some(0.0));
+}
+
+#[test]
 fn price_amount_serde_is_transparent() {
     let amount = PriceAmount::new(parse_decimal("1.35780"));
 
