@@ -268,8 +268,6 @@ fn cashflow_negative_signs_survive_serialization() {
     assert_eq!(cashflow["end_cash_position"]["amount"], json!("1000"));
 }
 
-/// Income statement result lines are signed: a loss from continuing
-/// operations keeps its negative sign through a serde round trip.
 #[test]
 fn continuing_operations_loss_keeps_its_negative_sign() {
     let mut income = income_row();

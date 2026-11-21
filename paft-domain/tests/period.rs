@@ -630,7 +630,6 @@ fn period_label_year_reads_the_year_written_in_the_label() {
     assert_eq!(date_period(2025, 12, 31).label_year(), Some(2025));
     assert_eq!(ReportingPeriod::other("TTM").unwrap().label_year(), None);
 
-    // `year()` is unchanged: it still ignores date periods.
     assert_eq!(date_period(2026, 9, 30).year(), None);
 }
 
@@ -691,7 +690,6 @@ fn fiscal_period_from_start_ends_the_day_before_the_next_period() {
 
 #[test]
 fn fiscal_period_handles_february_month_ends() {
-    // Leap-year February end: the year starts on March 1 of the prior year.
     let leap_end = FiscalPeriod::from_year_end(ymd(2024, 2, 29)).unwrap();
     assert_span(&leap_end, ymd(2023, 3, 1), ymd(2024, 2, 29));
 
@@ -699,7 +697,6 @@ fn fiscal_period_handles_february_month_ends() {
     let after_leap = FiscalPeriod::from_year_end(ymd(2025, 2, 28)).unwrap();
     assert_span(&after_leap, ymd(2024, 3, 1), ymd(2025, 2, 28));
 
-    // Year starting March 1 ends on the last day of February, leap or not.
     let to_leap = FiscalPeriod::from_year_start(ymd(2023, 3, 1)).unwrap();
     assert_span(&to_leap, ymd(2023, 3, 1), ymd(2024, 2, 29));
     let to_common = FiscalPeriod::from_year_start(ymd(2024, 3, 1)).unwrap();
@@ -798,7 +795,6 @@ fn fiscal_period_from_range_keeps_both_dates() {
     let one_day = FiscalPeriod::from_quarter_range(ymd(2025, 7, 1), ymd(2025, 7, 1)).unwrap();
     assert_span(&one_day, ymd(2025, 7, 1), ymd(2025, 7, 1));
 
-    // Same dates, different variant: not equal.
     let as_year = FiscalPeriod::from_year_range(ymd(2025, 1, 1), ymd(2025, 3, 31)).unwrap();
     let as_quarter = FiscalPeriod::from_quarter_range(ymd(2025, 1, 1), ymd(2025, 3, 31)).unwrap();
     assert_ne!(as_year, as_quarter);
@@ -816,6 +812,10 @@ fn fiscal_period_range_rejects_start_after_end() {
     assert_eq!(
         FiscalPeriod::from_quarter_range(start, end).unwrap_err(),
         expected
+    );
+    assert_eq!(
+        expected.to_string(),
+        "Invalid period range: start 2025-10-01, end 2025-09-30"
     );
 }
 

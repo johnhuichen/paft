@@ -550,19 +550,7 @@ impl ReportingPeriod {
         }
     }
 
-    /// Returns the year written in this period's label, if it has one.
-    ///
-    /// This is the year of a [`Year`](Self::Year) or [`Quarter`](Self::Quarter)
-    /// period, the calendar year of a [`Date`](Self::Date) period (2026 for
-    /// `2026-09-30`), and `None` for [`Other`](Self::Other).
-    ///
-    /// It differs from [`year`](Self::year) only for `Date` periods, where
-    /// `year()` returns `None`.
-    ///
-    /// The result is the year as written, not the name of the fiscal year the
-    /// period belongs to. A company whose fiscal year ends on 2026-01-31 may
-    /// call that year "fiscal 2025", but a `Date` period for that day still
-    /// returns 2026.
+    /// Returns the year written in this period's label, including the calendar year of a `Date`.
     #[must_use]
     pub fn label_year(&self) -> Option<i32> {
         match self {
@@ -859,22 +847,10 @@ impl CalendarPeriod {
     }
 }
 
-/// A company's fiscal year or fiscal quarter as a span of dates.
+/// Fiscal year or quarter as an inclusive date span, such as 2025-02-01 to 2026-01-31.
 ///
-/// The variant says how the company reported the period; `start` and `end`
-/// say which days it covers, both included. Fiscal periods need not line up
-/// with calendar years or quarters: a fiscal year can run from 2025-02-01 to
-/// 2026-01-31. A period can also be shorter or longer than usual, for example
-/// the transition period after a company changes its fiscal year-end, so
-/// nothing here requires a year to span 12 months or a quarter 3.
-///
-/// Build values with the `from_*` constructors, which guarantee
-/// `start <= end` and that both years are in `0..=9999`. The variants are
-/// `#[non_exhaustive]`, so code outside this crate can match on them but
-/// cannot build them directly.
-///
-/// Use [`ReportingPeriod`] for the label a provider gave a period and
-/// [`CalendarPeriod`] for calendar years and quarters.
+/// Spans need not align with calendar periods or have a standard length.
+/// Build values with the `from_*` constructors.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum FiscalPeriod {
@@ -899,18 +875,6 @@ pub enum FiscalPeriod {
 impl FiscalPeriod {
     /// Builds the 12-month fiscal year that ends on `end`.
     ///
-    /// The year starts 12 months before the day after `end`, so
-    /// `from_year_end(2026-01-31)` covers 2025-02-01 to 2026-01-31. Counting
-    /// back from the day after `end` keeps month-ends exact: a year ending
-    /// 2025-02-28 starts on 2024-03-01, not on 2024-02-29.
-    ///
-    /// When the day after `end` is day 1 to 28 of a month, which is always
-    /// true for a month-end `end`, this gives back the same period as
-    /// [`from_year_start`](Self::from_year_start) on the resulting start date.
-    /// Other ends can have their start clamped to a shorter month and do not
-    /// round-trip: `from_year_end(2028-02-28)` starts on 2027-02-28, and
-    /// `from_year_start(2027-02-28)` ends on 2028-02-27.
-    ///
     /// # Errors
     /// Returns [`DomainError::InvalidPeriodYear`] when the start or end year
     /// is outside `0..=9999`.
@@ -920,14 +884,6 @@ impl FiscalPeriod {
     }
 
     /// Builds the 3-month fiscal quarter that ends on `end`.
-    ///
-    /// Computed like [`from_year_end`](Self::from_year_end) with 3 months:
-    /// `from_quarter_end(2025-04-30)` covers 2025-02-01 to 2025-04-30.
-    ///
-    /// The same round-trip limit applies: `from_quarter_end(2025-05-29)` and
-    /// `from_quarter_end(2025-05-30)` both start on 2025-02-28, because the
-    /// date three months before the day after `end` is clamped to the end of
-    /// February.
     ///
     /// # Errors
     /// Returns [`DomainError::InvalidPeriodYear`] when the start or end year
@@ -939,13 +895,6 @@ impl FiscalPeriod {
 
     /// Builds the 12-month fiscal year that starts on `start`.
     ///
-    /// The year ends the day before the date 12 months after `start`, so
-    /// `from_year_start(2025-02-01)` covers 2025-02-01 to 2026-01-31.
-    ///
-    /// For starts on day 1 to 28 of a month, this gives back the same period
-    /// as [`from_year_end`](Self::from_year_end) on the resulting end date.
-    /// Later starts can be clamped to a shorter month and do not round-trip.
-    ///
     /// # Errors
     /// Returns [`DomainError::InvalidPeriodYear`] when the start or end year
     /// is outside `0..=9999`.
@@ -956,10 +905,6 @@ impl FiscalPeriod {
 
     /// Builds the 3-month fiscal quarter that starts on `start`.
     ///
-    /// Computed like [`from_year_start`](Self::from_year_start) with 3
-    /// months: `from_quarter_start(2025-08-01)` covers 2025-08-01 to
-    /// 2025-10-31.
-    ///
     /// # Errors
     /// Returns [`DomainError::InvalidPeriodYear`] when the start or end year
     /// is outside `0..=9999`.
@@ -968,8 +913,7 @@ impl FiscalPeriod {
         Ok(Self::Quarter { start, end })
     }
 
-    /// Builds a fiscal year covering `start` to `end`, both included, of any
-    /// length.
+    /// Builds a fiscal year of any length from `start` to `end`, inclusive.
     ///
     /// # Errors
     /// Returns [`DomainError::InvalidPeriodYear`] when either year is outside
@@ -980,8 +924,7 @@ impl FiscalPeriod {
         Ok(Self::Year { start, end })
     }
 
-    /// Builds a fiscal quarter covering `start` to `end`, both included, of
-    /// any length.
+    /// Builds a fiscal quarter of any length from `start` to `end`, inclusive.
     ///
     /// # Errors
     /// Returns [`DomainError::InvalidPeriodYear`] when either year is outside
@@ -1020,8 +963,7 @@ impl FiscalPeriod {
         matches!(self, Self::Quarter { .. })
     }
 
-    /// Returns true if `date` is on or after the start and on or before the
-    /// end of this period.
+    /// Returns true if `date` falls within this period, inclusive.
     #[must_use]
     pub fn contains_date(&self, date: NaiveDate) -> bool {
         self.start_date() <= date && date <= self.end_date()
@@ -1031,8 +973,7 @@ impl FiscalPeriod {
 const MONTHS_PER_YEAR: u32 = 12;
 const MONTHS_PER_QUARTER: u32 = 3;
 
-// Inputs are validated to years 0..=9999 first, so one day and 12 months either
-// way stays far inside chrono's date range and the shifts cannot fail.
+// Validated years keep these date shifts inside chrono's range, so they cannot fail.
 fn span_from_end(end: NaiveDate, months: u32) -> Result<(PeriodDate, PeriodDate), DomainError> {
     let end = PeriodDate::new(end)?;
     let Some(start) = end

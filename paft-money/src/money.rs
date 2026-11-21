@@ -299,13 +299,7 @@ impl Money {
         self.minor_units
     }
 
-    /// Returns the amount as an `f64`, for charting, statistics, or other
-    /// code that does not need exact decimal arithmetic.
-    ///
-    /// The conversion is lossy: most decimal amounts have no exact `f64`
-    /// representation, so the result is the nearest float the active decimal
-    /// backend produces. Returns `None` when the backend cannot convert the
-    /// amount.
+    /// Returns the amount as a lossy `f64`, or `None` if the decimal backend cannot convert it.
     #[must_use]
     pub fn to_f64(&self) -> Option<f64> {
         self.amount.to_f64()

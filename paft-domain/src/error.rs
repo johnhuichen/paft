@@ -30,8 +30,8 @@ pub enum DomainError {
         quarter: u8,
     },
 
-    /// Invalid period date range: the start is after the end.
-    #[error("Invalid period range: start {start} is after end {end}")]
+    /// Invalid period date range.
+    #[error("Invalid period range: start {start}, end {end}")]
     InvalidPeriodRange {
         /// The first day of the rejected range.
         start: NaiveDate,
