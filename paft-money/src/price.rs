@@ -2,7 +2,7 @@
 
 use crate::amount::MonetaryAmount;
 use crate::currency::Currency;
-use crate::decimal::{self, Decimal, RoundingStrategy};
+use crate::decimal::{self, Decimal, RoundingStrategy, ToPrimitive};
 use crate::error::MoneyError;
 use crate::exact::{
     CurrencyAmount, canonical_amount_format, checked_add_amounts, checked_div_decimal,
@@ -72,6 +72,12 @@ impl PriceAmount {
         self.amount
     }
 
+    /// Returns the amount as a lossy `f64`, or `None` if the decimal backend cannot convert it.
+    #[must_use]
+    pub fn to_f64(&self) -> Option<f64> {
+        self.amount.to_f64()
+    }
+
     /// Attaches a currency and returns a standalone [`Price`].
     #[must_use]
     pub fn with_currency(&self, currency: Currency) -> Price {
@@ -138,6 +144,12 @@ impl Price {
     #[must_use]
     pub fn amount(&self) -> Decimal {
         copy_decimal(&self.amount)
+    }
+
+    /// Returns the amount as a lossy `f64`, or `None` if the decimal backend cannot convert it.
+    #[must_use]
+    pub fn to_f64(&self) -> Option<f64> {
+        self.amount.to_f64()
     }
 
     /// Returns the price currency.

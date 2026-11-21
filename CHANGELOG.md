@@ -11,6 +11,7 @@ All notable changes to this project will be documented in this file.
   `IncomeStatementRow`: `cost_of_revenue`, `research_and_development`,
   `selling_general_and_administrative`, `operating_expenses`,
   `interest_income`, `ebit`, `ebitda`, `pretax_income`,
+  `net_income_from_continuing_operations`,
   `net_income_common_stockholders`, `basic_eps`, `diluted_eps`,
   `basic_average_shares`, and `diluted_average_shares`. New on
   `BalanceSheetRow`: `total_debt`, `current_debt`,
@@ -55,6 +56,18 @@ All notable changes to this project will be documented in this file.
 
 - Fundamentals: exact `DataFrame` schema tests (full ordered column list and
   dtype) and JSON wire-format tests for all three statement rows.
+
+- Domain/period: added `ReportingPeriod::label_year()`, the year written in
+  the period's label. Unlike `year()`, it also covers `Date` periods.
+
+- Domain/period: added `FiscalPeriod`, a fiscal year or quarter as an
+  inclusive span of dates, built from its end date, start date, or both.
+  Re-exported from the `paft` facade and prelude.
+
+- Domain/error: added `DomainError::InvalidPeriodRange`.
+
+- Money: added a lossy `to_f64() -> Option<f64>` to `Money`, `Price`, and
+  `PriceAmount`.
 
 ### Changed
 

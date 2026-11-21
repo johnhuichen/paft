@@ -10,7 +10,7 @@ use std::borrow::Cow;
 use std::fmt;
 
 use crate::error::DomainError;
-use chrono::{Datelike, NaiveDate};
+use chrono::{Datelike, Months, NaiveDate};
 use paft_utils::Canonical;
 
 /// Valid year component for structured financial periods.
@@ -550,6 +550,16 @@ impl ReportingPeriod {
         }
     }
 
+    /// Returns the year written in this period's label, including the calendar year of a `Date`.
+    #[must_use]
+    pub fn label_year(&self) -> Option<i32> {
+        match self {
+            Self::Quarter { year, .. } | Self::Year { year } => Some(year.get()),
+            Self::Date(date) => Some(date.get().year()),
+            Self::Other(_) => None,
+        }
+    }
+
     /// Returns the validated year component for this period, if applicable.
     #[must_use]
     pub const fn period_year(&self) -> Option<PeriodYear> {
@@ -835,6 +845,169 @@ impl CalendarPeriod {
     pub fn is_same_exact_bucket_as(&self, other: &Self) -> bool {
         self == other
     }
+}
+
+/// Fiscal year or quarter as an inclusive date span, such as 2025-02-01 to 2026-01-31.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum FiscalPeriod {
+    /// Fiscal year.
+    #[non_exhaustive]
+    Year {
+        /// First day of the fiscal year.
+        start: PeriodDate,
+        /// Last day of the fiscal year.
+        end: PeriodDate,
+    },
+    /// Fiscal quarter.
+    #[non_exhaustive]
+    Quarter {
+        /// First day of the fiscal quarter.
+        start: PeriodDate,
+        /// Last day of the fiscal quarter.
+        end: PeriodDate,
+    },
+}
+
+impl FiscalPeriod {
+    /// Builds the 12-month fiscal year that ends on `end`.
+    ///
+    /// # Errors
+    /// Returns [`DomainError::InvalidPeriodYear`] when the start or end year
+    /// is outside `0..=9999`.
+    pub fn from_year_end(end: NaiveDate) -> Result<Self, DomainError> {
+        let (start, end) = span_from_end(end, MONTHS_PER_YEAR)?;
+        Ok(Self::Year { start, end })
+    }
+
+    /// Builds the 3-month fiscal quarter that ends on `end`.
+    ///
+    /// # Errors
+    /// Returns [`DomainError::InvalidPeriodYear`] when the start or end year
+    /// is outside `0..=9999`.
+    pub fn from_quarter_end(end: NaiveDate) -> Result<Self, DomainError> {
+        let (start, end) = span_from_end(end, MONTHS_PER_QUARTER)?;
+        Ok(Self::Quarter { start, end })
+    }
+
+    /// Builds the 12-month fiscal year that starts on `start`.
+    ///
+    /// # Errors
+    /// Returns [`DomainError::InvalidPeriodYear`] when the start or end year
+    /// is outside `0..=9999`.
+    pub fn from_year_start(start: NaiveDate) -> Result<Self, DomainError> {
+        let (start, end) = span_from_start(start, MONTHS_PER_YEAR)?;
+        Ok(Self::Year { start, end })
+    }
+
+    /// Builds the 3-month fiscal quarter that starts on `start`.
+    ///
+    /// # Errors
+    /// Returns [`DomainError::InvalidPeriodYear`] when the start or end year
+    /// is outside `0..=9999`.
+    pub fn from_quarter_start(start: NaiveDate) -> Result<Self, DomainError> {
+        let (start, end) = span_from_start(start, MONTHS_PER_QUARTER)?;
+        Ok(Self::Quarter { start, end })
+    }
+
+    /// Builds a fiscal year of any length from `start` to `end`, inclusive.
+    ///
+    /// # Errors
+    /// Returns [`DomainError::InvalidPeriodYear`] when either year is outside
+    /// `0..=9999`, or [`DomainError::InvalidPeriodRange`] when `start` is after
+    /// `end`.
+    pub fn from_year_range(start: NaiveDate, end: NaiveDate) -> Result<Self, DomainError> {
+        let (start, end) = span_from_range(start, end)?;
+        Ok(Self::Year { start, end })
+    }
+
+    /// Builds a fiscal quarter of any length from `start` to `end`, inclusive.
+    ///
+    /// # Errors
+    /// Returns [`DomainError::InvalidPeriodYear`] when either year is outside
+    /// `0..=9999`, or [`DomainError::InvalidPeriodRange`] when `start` is after
+    /// `end`.
+    pub fn from_quarter_range(start: NaiveDate, end: NaiveDate) -> Result<Self, DomainError> {
+        let (start, end) = span_from_range(start, end)?;
+        Ok(Self::Quarter { start, end })
+    }
+
+    /// Returns the first day covered by this period.
+    #[must_use]
+    pub const fn start_date(&self) -> NaiveDate {
+        match self {
+            Self::Year { start, .. } | Self::Quarter { start, .. } => start.get(),
+        }
+    }
+
+    /// Returns the last day covered by this period.
+    #[must_use]
+    pub const fn end_date(&self) -> NaiveDate {
+        match self {
+            Self::Year { end, .. } | Self::Quarter { end, .. } => end.get(),
+        }
+    }
+
+    /// Returns true if this is a fiscal year.
+    #[must_use]
+    pub const fn is_year(&self) -> bool {
+        matches!(self, Self::Year { .. })
+    }
+
+    /// Returns true if this is a fiscal quarter.
+    #[must_use]
+    pub const fn is_quarter(&self) -> bool {
+        matches!(self, Self::Quarter { .. })
+    }
+
+    /// Returns true if `date` falls within this period, inclusive.
+    #[must_use]
+    pub fn contains_date(&self, date: NaiveDate) -> bool {
+        self.start_date() <= date && date <= self.end_date()
+    }
+}
+
+const MONTHS_PER_YEAR: u32 = 12;
+const MONTHS_PER_QUARTER: u32 = 3;
+
+// Validated years keep these date shifts inside chrono's range, so they cannot fail.
+fn span_from_end(end: NaiveDate, months: u32) -> Result<(PeriodDate, PeriodDate), DomainError> {
+    let end = PeriodDate::new(end)?;
+    let Some(start) = end
+        .get()
+        .succ_opt()
+        .and_then(|next| next.checked_sub_months(Months::new(months)))
+    else {
+        unreachable!();
+    };
+    Ok((PeriodDate::new(start)?, end))
+}
+
+fn span_from_start(start: NaiveDate, months: u32) -> Result<(PeriodDate, PeriodDate), DomainError> {
+    let start = PeriodDate::new(start)?;
+    let Some(end) = start
+        .get()
+        .checked_add_months(Months::new(months))
+        .and_then(|next| next.pred_opt())
+    else {
+        unreachable!();
+    };
+    Ok((start, PeriodDate::new(end)?))
+}
+
+fn span_from_range(
+    start: NaiveDate,
+    end: NaiveDate,
+) -> Result<(PeriodDate, PeriodDate), DomainError> {
+    let start = PeriodDate::new(start)?;
+    let end = PeriodDate::new(end)?;
+    if start > end {
+        return Err(DomainError::InvalidPeriodRange {
+            start: start.get(),
+            end: end.get(),
+        });
+    }
+    Ok((start, end))
 }
 
 // Per-format parser results.

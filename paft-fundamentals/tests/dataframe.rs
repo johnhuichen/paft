@@ -305,6 +305,7 @@ fn statements_row_to_dataframe() {
         pretax_income: None,
         income_tax_expense: None,
         depreciation_and_amortization: None,
+        net_income_from_continuing_operations: None,
         net_income: None,
         net_income_common_stockholders: None,
         basic_eps: Some(usd_price(2)),

@@ -82,6 +82,14 @@ const INCOME_STATEMENT_SCHEMA: &[(&str, DataType)] = &[
         DataType::Decimal(38, 10),
     ),
     ("depreciation_and_amortization.currency", DataType::String),
+    (
+        "net_income_from_continuing_operations.amount",
+        DataType::Decimal(38, 10),
+    ),
+    (
+        "net_income_from_continuing_operations.currency",
+        DataType::String,
+    ),
     ("net_income.amount", DataType::Decimal(38, 10)),
     ("net_income.currency", DataType::String),
     (
@@ -220,6 +228,7 @@ fn income_statement_row_dataframe_schema_is_exact() {
         pretax_income: Some(usd(3_420)),
         income_tax_expense: Some(usd(700)),
         depreciation_and_amortization: Some(usd(600)),
+        net_income_from_continuing_operations: Some(usd(2_720)),
         net_income: Some(usd(2_720)),
         net_income_common_stockholders: Some(usd(2_700)),
         basic_eps: Some(usd_price("2.72")),
@@ -314,6 +323,7 @@ fn all_none_rows_produce_the_same_schema() {
         pretax_income: None,
         income_tax_expense: None,
         depreciation_and_amortization: None,
+        net_income_from_continuing_operations: None,
         net_income: None,
         net_income_common_stockholders: None,
         basic_eps: None,

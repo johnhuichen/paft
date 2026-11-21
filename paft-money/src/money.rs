@@ -299,6 +299,12 @@ impl Money {
         self.minor_units
     }
 
+    /// Returns the amount as a lossy `f64`, or `None` if the decimal backend cannot convert it.
+    #[must_use]
+    pub fn to_f64(&self) -> Option<f64> {
+        self.amount.to_f64()
+    }
+
     /// Returns the amount as the smallest currency unit (minor units).
     ///
     /// Uses checked multiplication so a value that would overflow the

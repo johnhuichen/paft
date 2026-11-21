@@ -203,6 +203,18 @@ fn test_as_minor_units_basic() {
     assert_eq!(usd_123_45.as_minor_units().unwrap(), 12345i128);
 }
 
+#[test]
+fn money_to_f64_returns_the_amount_as_a_float() {
+    let usd = |amount: &str| Money::from_canonical_str(amount, Currency::Iso(IsoCurrency::USD));
+
+    assert_eq!(usd("123.25").unwrap().to_f64(), Some(123.25));
+    assert_eq!(usd("-0.5").unwrap().to_f64(), Some(-0.5));
+    assert_eq!(usd("0").unwrap().to_f64(), Some(0.0));
+
+    let approx = usd("123.45").unwrap().to_f64().unwrap();
+    assert!((approx - 123.45).abs() < 1e-9);
+}
+
 fn set_test_metadata(code: &str, minor_units: u8) {
     set_currency_metadata(code, code, minor_units, code, true, Locale::EnUs).unwrap();
 }
