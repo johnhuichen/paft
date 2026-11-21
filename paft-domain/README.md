@@ -12,6 +12,7 @@ Domain modeling primitives for the paft ecosystem: instruments, exchanges, perio
 - Canonical, serde-stable open enums (`Exchange`, `AssetKind`, `MarketState`)
 - `ReportingPeriod` parsing for fiscal/provider labels with a canonical wire format
 - `CalendarPeriod` helpers for calendar year/quarter/date boundaries
+- `FiscalPeriod` fiscal years and quarters as inclusive date spans, such as Feb 1 to Jan 31
 - `Horizon` parsing for relative lookback windows such as `7d`, `1mo`, and `1y`
 
 Install

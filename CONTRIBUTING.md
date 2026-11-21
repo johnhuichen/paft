@@ -24,6 +24,12 @@ just test             # run all tests
 just lint             # run clippy with strict warnings
 ```
 
+To format staged `.rs` and `.toml` files on every commit, install the pre-commit hook (the TOML step needs [`taplo`](https://taplo.tamasfe.dev/)):
+
+```bash
+cp hooks/pre-commit .git/hooks/pre-commit
+```
+
 ## How to Contribute
 
 1. Fork the repository and create your branch from `main`.

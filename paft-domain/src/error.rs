@@ -1,5 +1,6 @@
 //! Domain-specific error types for `paft-domain`.
 
+use chrono::NaiveDate;
 use thiserror::Error;
 
 /// Errors produced by domain models.
@@ -27,6 +28,15 @@ pub enum DomainError {
     InvalidPeriodQuarter {
         /// The invalid structured period quarter.
         quarter: u8,
+    },
+
+    /// Invalid period date range.
+    #[error("Invalid period range: start {start}, end {end}")]
+    InvalidPeriodRange {
+        /// The first day of the rejected range.
+        start: NaiveDate,
+        /// The last day of the rejected range.
+        end: NaiveDate,
     },
 
     /// Invalid horizon format provided for parsing.
